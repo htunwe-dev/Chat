@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>HMA Messenger</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <style>
+    :root{
+      --bg:#111; --pane:#1a1a1a; --bar:#222; --muted:#333; --accent:#00ff00; --text:#fff;
+    }
+    *{box-sizing:border-box}
+    body,html{margin:0;padding:0;height:100%;font-family:sans-serif;background:var(--bg);color:var(--text);overflow:hidden}
+
+    /* Top bar */
+    #topBar{
+      position:fixed; top:0; left:0; right:0; height:56px; background:var(--bar);
+      display:flex; align-items:center; gap:10px; padding:8px 12px; z-index:1000; border-bottom:1px solid var(--muted);
+    }
+    #tabs{display:flex; gap:6px;}
+    .tabBtn{padding:8px 12px; border:none; border-radius:8px; background:var(--muted); color:#fff; cursor:pointer}
+    .tabBtn.active{background:var(--accent); color:#000}
+
+    /* centered search */
+    #searchWrap{position:absolute; left:50%; transform:translateX(-50%); width:min(520px,68%); display:flex; align-items:center; gap:8px}
+    #searchInput{width:100%; padding:10px 14px; border-radius:20px; border:none; outline:none; background:#0f0f0f; color:#fff}
+
+    /* right utilities */
+    #rightUtils{margin-left:auto; display:flex; align-items:center; gap:10px}
+    #notifBell{position:relative; width:40px; height:40px; display:grid; place-items:center; border-radius:50%; background:var(--muted); cursor:pointer}
+    #notifBell .badge{
+      position:absolute; top:-4px; right:-4px; background:#ff5252; color:#fff; font-size:12px; padding:2px 6px; border-radius:999px; display:none;
+    }
+    #notifMenu{
+      position:absolute; top:56px; right:68px; width:280px; max-height:320px; overflow:auto; background:var(--pane);
+      border:1px solid var(--muted); border-radius:10px; display:none; z-index:1200;
+    }
+    .notifItem{display:flex; gap:8px; padding:8px; border-bottom:1px solid #2a2a2a; align-items:center}
+    .notifItem img{width:36px; height:36px; border-radius:50%; object-fit:cover}
+    .notifItem .actions{margin-left:auto; display:flex; gap:6px}
+    .btn{padding:6px 10px; border:none; border-radius:8px; cursor:pointer}
+    .btn.ok{background:var(--accent); color:#000}
+    .btn.neutral{background:#444; color:#fff}
+
+    #profileCircle{width:40px; height:40px; border-radius:50%; overflow:hidden; background:#555; cursor:pointer}
+    #profileCircle img{width:100%; height:100%; object-fit:cover}
+
+    /* main layout */
+    #main{position:absolute; top:56px; left:0; right:0; bottom:0; display:flex}
+
+    /* HOME (Users Grid) */
+    #home{flex:1; overflow:auto; padding:14px; display:block}
+    .grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(160px,1fr)); gap:12px}
+    .card{background:var(--pane); border:1px solid var(--muted); border-radius:12px; padding:12px; display:flex; flex-direction:column; align-items:center; gap:8px; cursor:pointer}
+    .card img{width:80px; height:80px; border-radius:50%; object-fit:cover}
+    .card .name{font-weight:700}
+
+    /* CHAT */
+    #chat{flex:1; display:none}
+    #chatWrap{display:flex; height:100%}
+    #friends{width:260px; background:var(--pane); border-right:1px solid var(--muted); overflow:auto}
+    .friendItem{display:flex; align-items:center; gap:8px; padding:10px; border-bottom:1px solid #2a2a2a; cursor:pointer}
+    .friendItem img{width:36px; height:36px; border-radius:50%; object-fit:cover}
+    .friendItem:hover{background:#222}
+    #dm{flex:1; display:flex; flex-direction:column}
+    #dmHead{height:52px; display:flex; align-items:center; gap:8px; padding:8px 12px; border-bottom:1px solid var(--muted); background:#141414}
+    #dmHead img{width:36px; height:36px; border-radius:50%; object-fit:cover}
+    #dmMsgs{flex:1; overflow:auto; padding:12px; display:flex; flex-direction:column; gap:10px; background:#101010}
+    .msg{display:flex; gap:8px; max-width:80%}
+    .msg.me{margin-left:auto; flex-direction:row-reverse}
+    .msg .bubble{padding:8px 12px; border-radius:14px; background:#2a2a2a}
+    .msg.me .bubble{background:var(--accent); color:#000}
+    .msg img{width:28px; height:28px; border-radius:50%; object-fit:cover; align-self:flex-end}
+    .meta{font-size:12px; opacity:.8; margin-top:2px}
+    #dmInput{display:flex; gap:8px; padding:10px; border-top:1px solid var(--muted); background:#141414}
+    #dmText{flex:1; padding:10px 14px; border-radius:18px; border:none; outline:none; background:#0f0f0f; color:#fff}
+    #dmSend,#makeGroup{padding:10px 14px; border:none; border-radius:10px; background:var(--accent); color:#000; cursor:pointer}
+    #makeGroup{background:#5fd3ff}
+
+    /* GLOBAL */
+    #global{flex:1; display:none}
+    #globalWrap{display:flex; flex-direction:column; height:100%}
+    #globalMsgs{flex:1; overflow:auto; padding:12px; display:flex; flex-direction:column; gap:10px; background:#101010}
+    .gmsg{display:flex; gap:8px; max-width:80%}
+    .gmsg.me{margin-left:auto; flex-direction:row-reverse}
+    .gmsg img{width:28px; height:28px; border-radius:50%}
+    .gmsg .bubble{padding:8px 12px; border-radius:14px; background:#2a2a2a}
+    .gmsg.me .bubble{background:var(--accent); color:#000}
+    #globalInput{display:flex; gap:8px; padding:10px; border-top:1px solid var(--muted); background:#141414}
+    #globalText{flex:1; padding:10px 14px; border-radius:18px; border:none; outline:none; background:#0f0f0f; color:#fff}
+    #globalSend{padding:10px 14px; border:none; border-radius:10px; background:var(--accent); color:#000; cursor:pointer}
+
+    /* PROFILE MODAL (full screen) */
+    #profileModal{
+      position:fixed; inset:0; background:rgba(0,0,0,.92); display:none; z-index:1500; overflow:auto;
+    }
+    #profileSheet{max-width:720px; margin:80px auto 40px; background:var(--pane); border:1px solid var(--muted); border-radius:14px; padding:16px}
+    #profileHeader{display:flex; align-items:center; gap:14px; margin-bottom:10px}
+    #profileHeader img{width:96px; height:96px; border-radius:50%; object-fit:cover}
+    #profileActions{margin-left:auto; display:flex; gap:8px}
+    #profileClose{position:fixed; top:16px; right:16px; background:#444; color:#fff; border:none; border-radius:50%; width:38px; height:38px; cursor:pointer}
+    #profileFields{display:flex; flex-direction:column; gap:8px}
+    #profileFields input[type="text"], #profileFields textarea{padding:10px; border:none; border-radius:10px; background:#101010; color:#fff}
+    #profileFriends{margin-top:10px; display:flex; flex-wrap:wrap; gap:10px}
+    .mini{display:flex; align-items:center; gap:8px; background:#151515; padding:6px 8px; border-radius:10px}
+    .mini img{width:28px; height:28px; border-radius:50%}
+
+    /* SEARCH OVERLAY */
+    #searchOverlay{position:fixed; inset:56px 0 0 0; background:#0b0b0b; display:none; z-index:1200; overflow:auto; padding:16px}
+    #searchGrid{display:grid; grid-template-columns:repeat(auto-fill, minmax(200px,1fr)); gap:12px}
+  </style>
+</head>
+<body>
+
+  <!-- Top Bar -->
+  <div id="topBar">
+    <div id="tabs">
+      <button class="tabBtn active" data-tab="home">Home</button>
+      <button class="tabBtn" data-tab="chat">Chat</button>
+      <button class="tabBtn" data-tab="global">Global</button>
+    </div>
+
+    <div id="searchWrap">
+      <input id="searchInput" placeholder="Search users by name… (press Enter)"/>
+    </div>
+
+    <div id="rightUtils">
+      <div id="notifBell" title="Friend requests">
+        🔔
+        <span class="badge" id="notifBadge">0</span>
+      </div>
+      <div id="profileCircle" title="Profile">
+        <img id="mePic" src="https://www.w3schools.com/howto/img_avatar.png" alt="me">
+      </div>
+    </div>
+
+    <div id="notifMenu"></div>
+  </div>
+
+  <!-- Main Panels -->
+  <div id="main">
+    <!-- HOME -->
+    <div id="home">
+      <div class="grid" id="homeGrid"></div>
+    </div>
+
+    <!-- CHAT -->
+    <div id="chat">
+      <div id="chatWrap">
+        <div id="friends"></div>
+        <div id="dm">
+          <div id="dmHead">
+            <img id="dmPic" src="https://www.w3schools.com/howto/img_avatar.png">
+            <div>
+              <div id="dmName" style="font-weight:700">Select a friend</div>
+              <div id="dmSub" class="meta"></div>
+            </div>
+            <button id="makeGroup" style="margin-left:auto">Create Group</button>
+          </div>
+          <div id="dmMsgs"></div>
+          <div id="dmInput">
+            <input id="dmText" placeholder="Type a message…">
+            <button id="dmSend">Send</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- GLOBAL -->
+    <div id="global">
+      <div id="globalWrap">
+        <div id="globalMsgs"></div>
+        <div id="globalInput">
+          <input id="globalText" placeholder="Message the world…">
+          <button id="globalSend">Send</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Profile Modal -->
+  <div id="profileModal">
+    <button id="profileClose">✕</button>
+    <div id="profileSheet">
+      <div id="profileHeader">
+        <img id="pPic" src="https://www.w3schools.com/howto/img_avatar.png">
+        <div style="display:flex; flex-direction:column; gap:6px">
+          <input id="pName" type="text" placeholder="Your name">
+          <input id="pPicFile" type="file" accept="image/*">
+        </div>
+        <div id="profileActions">
+          <button id="pSave" class="btn ok">Save</button>
+          <button id="pAddFriend" class="btn ok" style="display:none">Add Friend</button>
+          <button id="pUnfriend" class="btn neutral" style="display:none">Unfriend</button>
+          <button id="pMsg" class="btn ok" style="display:none">Message</button>
+        </div>
+      </div>
+      <div id="profileFields">
+        <textarea id="pDesc" rows="3" placeholder="Write a short description…"></textarea>
+      </div>
+      <div style="margin-top:8px; font-weight:700">Friends</div>
+      <div id="profileFriends"></div>
+    </div>
+  </div>
+
+  <!-- Search Overlay -->
+  <div id="searchOverlay">
+    <div class="grid" id="searchGrid"></div>
+  </div>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+  <script>
+  // === Firebase config ===
+  const firebaseConfig = {
+    apiKey: "AIzaSyD5CgT6oCUtttk1l4LHXonlGHqZ1CjZBvc",
+    authDomain: "chatlolo-c2846.firebaseapp.com",
+    databaseURL: "https://chatlolo-c2846-default-rtdb.firebaseio.com",
+    projectId: "chatlolo-c2846",
+    storageBucket: "chatlolo-c2846.appspot.com",
+    messagingSenderId: "699819887540",
+    appId: "1:699819887540:web:615ba11ce319d4236300e1"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+
+  // === Session & profile ===
+  let userId = localStorage.getItem("userId");
+  if(!userId){ userId = Math.random().toString(36).slice(2,11); localStorage.setItem("userId", userId); }
+  let me = JSON.parse(localStorage.getItem("userProfile")||"{}");
+  if(!me.name){ me = {name:"Anonymous", pic:"", desc:"", friends:{}}; localStorage.setItem("userProfile", JSON.stringify(me)); }
+
+  const mePic = document.getElementById('mePic');
+  mePic.src = me.pic || "https://www.w3schools.com/howto/img_avatar.png";
+
+  // Write/update my user once (no onDisconnect remove to avoid disappearing)
+  function writeMe(){
+    const payload = { name: me.name||"Anonymous", pic: me.pic||"", desc: me.desc||"", lastActive: Date.now(), friends: me.friends||{} };
+    db.ref("users/"+userId).update(payload);
+  }
+  writeMe();
+
+  // === Tabs ===
+  const panels = {home: document.getElementById('home'), chat: document.getElementById('chat'), global: document.getElementById('global')};
+  document.querySelectorAll('.tabBtn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      document.querySelectorAll('.tabBtn').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      const t = btn.dataset.tab;
+      Object.keys(panels).forEach(k=> panels[k].style.display = (k===t)?(k==='chat'?'block':'block'):'none');
+      if(t==='global'){ /* full width automatically by layout */ }
+    });
+  });
+
+  // === Home users grid (non-flicker, 10s refresh) ===
+  const homeGrid = document.getElementById('homeGrid');
+  let usersCache = {};
+  function renderHome(users){
+    // diffing by key
+    homeGrid.innerHTML = '';
+    Object.entries(users).forEach(([uid,u])=>{
+      if(!u || !u.name) return;
+      const card = document.createElement('div');
+      card.className='card';
+      const img = document.createElement('img');
+      img.src = u.pic || "https://www.w3schools.com/howto/img_avatar.png";
+      const name = document.createElement('div');
+      name.className='name';
+      name.textContent = u.name + (uid===userId?' (You)':'');
+      card.appendChild(img); card.appendChild(name);
+      card.addEventListener('click', ()=> openProfile(uid));
+      homeGrid.appendChild(card);
+    });
+  }
+  async function refreshUsers(){
+    const snap = await db.ref('users').once('value');
+    const next = snap.val()||{};
+    usersCache = next;
+    renderHome(next);
+    renderFriendsList();
+  }
+  refreshUsers();
+  setInterval(refreshUsers, 10000);
+
+  // === Search overlay ===
+  const searchInput = document.getElementById('searchInput');
+  const searchOverlay = document.getElementById('searchOverlay');
+  const searchGrid = document.getElementById('searchGrid');
+  function doSearch(term){
+    searchGrid.innerHTML='';
+    const t = term.trim().toLowerCase();
+    Object.entries(usersCache).forEach(([uid,u])=>{
+      if(!u || !u.name) return;
+      if(!t || u.name.toLowerCase().includes(t)){
+        const card = document.createElement('div');
+        card.className='card';
+        const img = document.createElement('img');
+        img.src = u.pic || "https://www.w3schools.com/howto/img_avatar.png";
+        const name = document.createElement('div'); name.className='name'; name.textContent = u.name;
+        card.appendChild(img); card.appendChild(name);
+        card.addEventListener('click', ()=> { openProfile(uid); searchOverlay.style.display='none'; });
+        searchGrid.appendChild(card);
+      }
+    });
+  }
+  searchInput.addEventListener('keydown', e=>{
+    if(e.key==='Enter'){
+      searchOverlay.style.display='block';
+      doSearch(searchInput.value);
+    }
+  });
+  // click outside to close
+  searchOverlay.addEventListener('click', (e)=>{ if(e.target===searchOverlay) searchOverlay.style.display='none'; });
+
+  // === Profile modal ===
+  const profileModal = document.getElementById('profileModal');
+  const profileClose = document.getElementById('profileClose');
+  const pPic = document.getElementById('pPic');
+  const pName = document.getElementById('pName');
+  const pPicFile = document.getElementById('pPicFile');
+  const pDesc = document.getElementById('pDesc');
+  const pSave = document.getElementById('pSave');
+  const pAddFriend = document.getElementById('pAddFriend');
+  const pUnfriend = document.getElementById('pUnfriend');
+  const pMsg = document.getElementById('pMsg');
+  const profileFriends = document.getElementById('profileFriends');
+
+  let viewingUid = null;
+  function openProfile(uid){
+    viewingUid = uid;
+    const u = usersCache[uid] || {};
+    pPic.src = (u.pic || "https://www.w3schools.com/howto/img_avatar.png");
+    pName.value = u.name || '';
+    pDesc.value = u.desc || '';
+    profileFriends.innerHTML='';
+    const friends = u.friends||{};
+    Object.keys(friends).forEach(fid=>{
+      const fu = usersCache[fid]; if(!fu) return;
+      const chip = document.createElement('div');
+      chip.className='mini';
+      const i = document.createElement('img'); i.src = fu.pic || "https://www.w3schools.com/howto/img_avatar.png";
+      const s = document.createElement('span'); s.textContent = fu.name||'User';
+      chip.appendChild(i); chip.appendChild(s);
+      profileFriends.appendChild(chip);
+    });
+
+    // Controls visibility
+    if(uid===userId){
+      pSave.style.display='inline-block';
+      pAddFriend.style.display='none';
+      pUnfriend.style.display='none';
+      pMsg.style.display='none';
+      pName.disabled=false; pDesc.disabled=false; pPicFile.style.display='block';
+    }else{
+      pSave.style.display='none';
+      pName.disabled=true; pDesc.disabled=true; pPicFile.style.display='none';
+      const amFriends = !!((me.friends||{})[uid]);
+      pAddFriend.style.display = amFriends ? 'none' : 'inline-block';
+      pUnfriend.style.display  = amFriends ? 'inline-block' : 'none';
+      pMsg.style.display='inline-block';
+    }
+
+    profileModal.style.display='block';
+  }
+  profileClose.addEventListener('click', ()=> profileModal.style.display='none');
+  document.getElementById('profileCircle').addEventListener('click', ()=> openProfile(userId));
+
+  pPicFile.addEventListener('change', ()=>{
+    const f = pPicFile.files[0]; if(!f) return;
+    const reader = new FileReader();
+    reader.onload = e=>{
+      pPic.src = e.target.result;
+      me.pic = e.target.result;
+      mePic.src = me.pic || "https://www.w3schools.com/howto/img_avatar.png";
+      localStorage.setItem('userProfile', JSON.stringify(me));
+      writeMe();
+    };
+    reader.readAsDataURL(f);
+  });
+  pSave.addEventListener('click', ()=>{
+    me.name = pName.value.trim()||'Anonymous';
+    me.desc = pDesc.value.trim();
+    localStorage.setItem('userProfile', JSON.stringify(me));
+    writeMe();
+    refreshUsers();
+    alert('Profile saved!');
+  });
+
+  // === Friend system ===
+  // send request
+  pAddFriend.addEventListener('click', ()=>{
+    if(!viewingUid || viewingUid===userId) return;
+    db.ref(`friendRequests/${viewingUid}/${userId}`).set({
+      from:userId, fromName:me.name, fromPic:me.pic||"", time:Date.now()
+    });
+    alert('Friend request sent!');
+  });
+  // unfriend
+  pUnfriend.addEventListener('click', async ()=>{
+    if(!viewingUid) return;
+    await db.ref(`users/${userId}/friends/${viewingUid}`).remove();
+    await db.ref(`users/${viewingUid}/friends/${userId}`).remove();
+    delete me.friends?.[viewingUid];
+    localStorage.setItem('userProfile', JSON.stringify(me));
+    writeMe();
+    refreshUsers();
+    openProfile(viewingUid);
+  });
+  // message
+  pMsg.addEventListener('click', ()=>{
+    if(!viewingUid) return;
+    // switch to Chat tab and open DM
+    document.querySelector('[data-tab="chat"]').click();
+    openDMWith(viewingUid);
+    profileModal.style.display='none';
+  });
+
+  // notifications
+  const notifBell = document.getElementById('notifBell');
+  const notifBadge = document.getElementById('notifBadge');
+  const notifMenu  = document.getElementById('notifMenu');
+  let reqs = {};
+  db.ref(`friendRequests/${userId}`).on('value', snap=>{
+    reqs = snap.val()||{};
+    const count = Object.keys(reqs).length;
+    notifBadge.textContent = count;
+    notifBadge.style.display = count ? 'inline-block' : 'none';
+    renderNotifMenu();
+  });
+  function renderNotifMenu(){
+    notifMenu.innerHTML='';
+    Object.values(reqs).forEach(r=>{
+      const row = document.createElement('div'); row.className='notifItem';
+      const img = document.createElement('img'); img.src = r.fromPic || "https://www.w3schools.com/howto/img_avatar.png";
+      const span = document.createElement('span'); span.textContent = `${r.fromName} sent you a request`;
+      const act = document.createElement('div'); act.className='actions';
+      const acc = document.createElement('button'); acc.className='btn ok'; acc.textContent='Accept';
+      const dec = document.createElement('button'); dec.className='btn neutral'; dec.textContent='Decline';
+      acc.onclick = async ()=>{
+        // add friends both sides
+        await db.ref(`users/${userId}/friends/${r.from}`).set(true);
+        await db.ref(`users/${r.from}/friends/${userId}`).set(true);
+        me.friends = me.friends||{}; me.friends[r.from]=true;
+        localStorage.setItem('userProfile', JSON.stringify(me));
+        writeMe();
+        await db.ref(`friendRequests/${userId}/${r.from}`).remove();
+        refreshUsers();
+      };
+      dec.onclick = ()=> db.ref(`friendRequests/${userId}/${r.from}`).remove();
+      act.appendChild(acc); act.appendChild(dec);
+      row.appendChild(img); row.appendChild(span); row.appendChild(act);
+      notifMenu.appendChild(row);
+    });
+    if(!Object.keys(reqs).length){
+      const empty = document.createElement('div');
+      empty.style.padding='10px'; empty.textContent='No requests';
+      notifMenu.appendChild(empty);
+    }
+  }
+  let notifOpen=false;
+  notifBell.addEventListener('click', ()=>{
+    notifOpen=!notifOpen;
+    notifMenu.style.display = notifOpen?'block':'none';
+  });
+  window.addEventListener('click', (e)=>{
+    if(!notifBell.contains(e.target) && !notifMenu.contains(e.target)){
+      notifOpen=false; notifMenu.style.display='none';
+    }
+  });
+
+  // === Chat (friends list + DM) ===
+  const friendsDiv = document.getElementById('friends');
+  const dmMsgs = document.getElementById('dmMsgs');
+  const dmText = document.getElementById('dmText');
+  const dmSend = document.getElementById('dmSend');
+  const dmPic = document.getElementById('dmPic');
+  const dmName = document.getElementById('dmName');
+  const dmSub  = document.getElementById('dmSub');
+
+  let dmListeningRef = null;
+  function renderFriendsList(){
+    const myFriends = (usersCache[userId]?.friends)||{};
+    friendsDiv.innerHTML='';
+    Object.keys(myFriends).forEach(fid=>{
+      const fu = usersCache[fid]; if(!fu) return;
+      const row = document.createElement('div'); row.className='friendItem';
+      const img = document.createElement('img'); img.src = fu.pic || "https://www.w3schools.com/howto/img_avatar.png";
+      const name = document.createElement('div'); name.textContent = fu.name;
+      row.appendChild(img); row.appendChild(name);
+      row.addEventListener('click', ()=> openDMWith(fid));
+      friendsDiv.appendChild(row);
+    });
+  }
+
+  function roomKey(a,b){ return [a,b].sort().join('__'); }
+
+  function openDMWith(fid){
+    const fu = usersCache[fid]; if(!fu) return;
+    dmPic.src = fu.pic || "https://www.w3schools.com/howto/img_avatar.png";
+    dmName.textContent = fu.name;
+    dmSub.textContent = 'Direct Message';
+    dmMsgs.innerHTML='';
+
+    // stop previous listener
+    if(dmListeningRef){ dmListeningRef.off(); dmListeningRef=null; }
+
+    const key = roomKey(userId, fid);
+    dmListeningRef = db.ref('dm/'+key);
+    dmListeningRef.limitToLast(200).on('child_added', (snap)=>{
+      const m = snap.val();
+      addDMMessage(m);
+    });
+  }
+
+  function addDMMessage(m){
+    const mine = (m.senderId===userId);
+    const wrap = document.createElement('div'); wrap.className='msg'+(mine?' me':'');
+    const pic = document.createElement('img'); pic.src = (mine ? (me.pic||"https://www.w3schools.com/howto/img_avatar.png") : (usersCache[m.senderId]?.pic||"https://www.w3schools.com/howto/img_avatar.png"));
+    const bubble = document.createElement('div'); bubble.className='bubble'; bubble.innerHTML = `<div><b>${m.name||'User'}</b></div><div>${m.text}</div>`;
+    const meta = document.createElement('div'); meta.className='meta'; meta.textContent = new Date(m.time||Date.now()).toLocaleTimeString();
+    bubble.appendChild(meta);
+    wrap.appendChild(pic); wrap.appendChild(bubble);
+    dmMsgs.appendChild(wrap);
+    dmMsgs.scrollTop = dmMsgs.scrollHeight;
+  }
+
+  function sendDM(){
+    const txt = dmText.value.trim();
+    if(!txt) return;
+    // find current open friend by header name
+    const targetId = Object.keys(usersCache).find(uid => usersCache[uid]?.name === dmName.textContent) ||
+                     Object.keys((usersCache[userId]?.friends)||{})[0];
+    if(!targetId) return;
+    const key = roomKey(userId, targetId);
+    db.ref('dm/'+key).push({ senderId:userId, name:me.name, text:txt, time:Date.now() });
+    dmText.value='';
+  }
+  dmSend.addEventListener('click', sendDM);
+  dmText.addEventListener('keydown', e=>{ if(e.key==='Enter') sendDM(); });
+
+  document.getElementById('makeGroup').addEventListener('click', ()=>{
+    const names = prompt("Type member names separated by commas (must be your friends):");
+    if(!names) return;
+    alert('Group creation UI stub: implement selection + group room if you want. (Messages already support rooms by ID);');
+  });
+
+  // === Global chat ===
+  const globalMsgs = document.getElementById('globalMsgs');
+  const globalText = document.getElementById('globalText');
+  const globalSend = document.getElementById('globalSend');
+
+  db.ref('global').limitToLast(200).on('child_added', (snap)=>{
+    const m = snap.val();
+    addGlobal(m);
+  });
+
+  function addGlobal(m){
+    const mine = (m.senderId===userId);
+    const row = document.createElement('div'); row.className='gmsg'+(mine?' me':'');
+    const pic = document.createElement('img'); pic.src = m.pic || (usersCache[m.senderId]?.pic) || "https://www.w3schools.com/howto/img_avatar.png";
+    const bubble = document.createElement('div'); bubble.className='bubble';
+    bubble.innerHTML = `<div><b>${m.name||'User'}</b></div><div>${m.text}</div><div class="meta">${new Date(m.time||Date.now()).toLocaleTimeString()}</div>`;
+    row.appendChild(pic); row.appendChild(bubble);
+    globalMsgs.appendChild(row);
+    globalMsgs.scrollTop = globalMsgs.scrollHeight;
+  }
+
+  function sendGlobal(){
+    const txt = globalText.value.trim(); if(!txt) return;
+    db.ref('global').push({ senderId:userId, name:me.name, pic:me.pic||"", text:txt, time:Date.now() });
+    globalText.value='';
+  }
+  globalSend.addEventListener('click', sendGlobal);
+  globalText.addEventListener('keydown', e=>{ if(e.key==='Enter') sendGlobal(); });
+
+  // === Keep me updated locally when DB user changes (friends etc.) ===
+  db.ref('users/'+userId).on('value', (snap)=>{
+    const val = snap.val()||{};
+    me.friends = val.friends||{};
+    localStorage.setItem('userProfile', JSON.stringify({...me, friends:me.friends}));
+    renderFriendsList();
+  });
+  </script>
+</body>
+</html>
